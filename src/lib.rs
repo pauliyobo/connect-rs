@@ -6,7 +6,8 @@ use anyhow::Result;
 use base64::{engine::general_purpose, Engine};
 use reqwest::{header, Client, StatusCode};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
-use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
+use reqwest_retry::RetryTransientMiddleware;
+use retry_policies::policies::ExponentialBackoff;
 use retry_policies::Jitter;
 use std::time::Duration;
 

@@ -5,11 +5,11 @@ edition = "2021"
 authors = ["Paul Iyobo <pauliyobo@gmail.com"]
 
 [dependencies]
-anyhow = "1.0.89"
+anyhow = "1.0.90"
 base64 = "0.22.1"
-retry-policies = "0.3.0"
-reqwest = { version = "0.12.5", features = ["json"] }
-reqwest-middleware = { version = "0.3.2", features = ["json"] }
-reqwest-retry = "0.5.0"
-serde = { version = "1.0.203", features = ["derive"] }
-tokio = { version = "1.38.0", features = ["full"] }
+reqwest = { version = "0.12.8", features = ["json"] }
+reqwest-retry = "0.6.1"
+serde = { version = "1.0.210", features = ["derive"] }
+tokio = { version = "1.40.0", features = ["full"] }
+reqwest-middleware = { version = "0.3.3", features = ["json"] }
+retry-policies = "0.4.0"
