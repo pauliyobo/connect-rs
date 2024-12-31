@@ -75,4 +75,5 @@ pub enum Status {
     Restarting,
     Failed,
     Unassigned,
+    Stopped,
 }
