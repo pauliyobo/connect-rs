@@ -149,4 +149,21 @@ impl Connect {
             .await?;
         Ok(response)
     }
+
+    pub async fn pause_connector(&self, name: &str) -> Result<()> {
+        self.client.put(format!("{}/connectors/{}/pause", self.address, name)).send().await?;
+        Ok(())
+    }
+
+    pub async fn resume_connector(&self, name: &str) -> Result<()> {
+        self.client.put(format!("{}/connectors/{}/resume", self.address, name)).send().await?;
+        Ok(())
+    }
+
+    pub async fn stop_connector(&self, name: &str) -> Result<()> {
+        self.client.put(format!("{}/connectors/{}/stop", self.address, name)).send().await?;
+        Ok(()) 
+    }
+
+    
 }
