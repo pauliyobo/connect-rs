@@ -2,7 +2,6 @@ pub mod models;
 use models::*;
 use std::collections::HashMap;
 
-// use anyhow::Result;
 use base64::{engine::general_purpose, Engine};
 use reqwest::{header, Client, StatusCode};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
@@ -17,20 +16,20 @@ const ENGINE: general_purpose::GeneralPurpose = general_purpose::STANDARD;
 /// ConnectError
 #[derive(Debug, Error)]
 pub enum ConnectError {
-    #[error("A rebalance may be  needed, forthcoming, or underway")]
-    Rebalancing,
+    #[error("A rebalance may be  needed, forthcoming, or underway.")]
+    RebalancingInProgress,
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
-    #[error("The request could not be processed")]
+    #[error("An internal server error occurred while processing the request.")]
     InternalError,
-    #[error("at least info and status must be expanded")]
-    ExpandError,
+    #[error("At least one of 'info' or 'status' must be expanded.")]
+    InvalidExpandOption,
     #[error(transparent)]
     RequestError(#[from] reqwest::Error),
     #[error(transparent)]
     MiddlewareError(#[from] reqwest_middleware::Error),
-    #[error("the connector {0} does not exist")]
-    ConnectorDoesNotExist(String),
+    #[error("The connector {0} does not exist.")]
+    ConnectorNotFound,
 }
 
 pub type Result<T> = anyhow::Result<T, ConnectError>;
@@ -106,7 +105,7 @@ impl Connect {
             (false, false) => "",
         };
         if expand.is_empty() {
-            return Err(ConnectError::ExpandError);
+            return Err(ConnectError::InvalidExpandOption);
         }
         endpoint.push_str(expand);
         let response = self.client.get(endpoint).send().await?.json().await?;
@@ -131,8 +130,8 @@ impl Connect {
         match status_code {
             StatusCode::NO_CONTENT | StatusCode::OK => Ok(None),
             StatusCode::ACCEPTED => Ok(response.json().await?),
-            StatusCode::NOT_FOUND => Err(ConnectError::ConnectorDoesNotExist(name.to_string())),
-            StatusCode::CONFLICT => Err(ConnectError::Rebalancing),
+            StatusCode::NOT_FOUND => Err(ConnectError::ConnectorNotFound(name.to_string())),
+            StatusCode::CONFLICT => Err(ConnectError::RebalancingInProgress),
             StatusCode::INTERNAL_SERVER_ERROR => Err(ConnectError::InternalError),
             _ => Err(ConnectError::Unknown(anyhow::anyhow!(
                 "Unrecognizable error for status code {}",
@@ -150,7 +149,7 @@ impl Connect {
         let status_code = response.status();
         match status_code {
             StatusCode::NO_CONTENT | StatusCode::OK => Ok(()),
-            StatusCode::CONFLICT => Err(ConnectError::Rebalancing),
+            StatusCode::CONFLICT => Err(ConnectError::RebalancingInProgress),
             _ => Err(ConnectError::Unknown(anyhow::anyhow!(
                 "Unrecognizable error"
             ))),
