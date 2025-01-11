@@ -233,10 +233,10 @@ mod tests {
         server
             .mock("GET", "/connectors")
             .match_query(mockito::Matcher::AnyOf(
-                (vec![
+                vec![
                     mockito::Matcher::Exact("expand=info".to_string()),
                     mockito::Matcher::Exact("expand=status".to_string()),
-                ]),
+                ],
             ))
             .with_body(serde_json::to_string(&expected).unwrap())
             .with_status(200)
