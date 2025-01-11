@@ -2,7 +2,7 @@ pub mod models;
 use models::*;
 use std::collections::HashMap;
 
-use anyhow::Result;
+// use anyhow::Result;
 use base64::{engine::general_purpose, Engine};
 use reqwest::{header, Client, StatusCode};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
@@ -10,8 +10,30 @@ use reqwest_retry::RetryTransientMiddleware;
 use retry_policies::policies::ExponentialBackoff;
 use retry_policies::Jitter;
 use std::time::Duration;
+use thiserror::Error;
 
 const ENGINE: general_purpose::GeneralPurpose = general_purpose::STANDARD;
+
+/// ConnectError
+#[derive(Debug, Error)]
+pub enum ConnectError {
+    #[error("A rebalance may be  needed, forthcoming, or underway")]
+    Rebalancing,
+    #[error(transparent)]
+    Unknown(#[from] anyhow::Error),
+    #[error("The request could not be processed")]
+    InternalError,
+    #[error("at least info and status must be expanded")]
+    ExpandError,
+    #[error(transparent)]
+    RequestError(#[from] reqwest::Error),
+    #[error(transparent)]
+    MiddlewareError(#[from] reqwest_middleware::Error),
+    #[error("the connector {0} does not exist")]
+    ConnectorDoesNotExist(String),
+}
+
+pub type Result<T> = anyhow::Result<T, ConnectError>;
 
 /// main interface
 #[derive(Debug, Clone)]
@@ -84,7 +106,7 @@ impl Connect {
             (false, false) => "",
         };
         if expand.is_empty() {
-            anyhow::bail!("You must expand either info, status, or both. If you'd rather use none of them, you may call the connector_names() method instead");
+            return Err(ConnectError::ExpandError);
         }
         endpoint.push_str(expand);
         let response = self.client.get(endpoint).send().await?.json().await?;
@@ -109,18 +131,18 @@ impl Connect {
         match status_code {
             StatusCode::NO_CONTENT | StatusCode::OK => Ok(None),
             StatusCode::ACCEPTED => Ok(response.json().await?),
-            StatusCode::NOT_FOUND => anyhow::bail!("Connector does not exist"),
+            StatusCode::NOT_FOUND => Err(ConnectError::ConnectorDoesNotExist(name.to_string())),
             StatusCode::CONFLICT => {
-                anyhow::bail!("A rebalance may be  needed, forthcoming, or underway")
+                Err(ConnectError::Rebalancing)
             }
             StatusCode::INTERNAL_SERVER_ERROR => {
-                anyhow::bail!("The request could not be processed.")
+                Err(ConnectError::InternalError)
             }
-            _ => anyhow::bail!("Unrecognizable error for status code {}", status_code),
+            _ => Err(ConnectError::Unknown(anyhow::anyhow!("Unrecognizable error for status code {}", status_code))),
         }
     }
 
-    pub async fn delete_connector(&self, connector: &str) -> anyhow::Result<()> {
+    pub async fn delete_connector(&self, connector: &str) -> Result<()> {
         let response = self
             .client
             .delete(format!("{}/connectors/{}", self.address, connector))
@@ -130,16 +152,16 @@ impl Connect {
         match status_code {
             StatusCode::NO_CONTENT | StatusCode::OK => Ok(()),
             StatusCode::CONFLICT => {
-                anyhow::bail!("A rebalance may be  needed, forthcoming, or underway")
+                Err(ConnectError::Rebalancing)
             }
-            _ => anyhow::bail!("Unrecognizable error"),
+            _ => Err(ConnectError::Unknown(anyhow::anyhow!("Unrecognizable error"))),
         }
     }
 
     pub async fn connector_config(
         &self,
         connector: &str,
-    ) -> anyhow::Result<HashMap<String, String>> {
+    ) -> Result<HashMap<String, String>> {
         let response: HashMap<String, String> = self
             .client
             .get(format!("{}/connectors/{}/config", self.address, connector))
