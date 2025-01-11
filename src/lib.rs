@@ -132,13 +132,12 @@ impl Connect {
             StatusCode::NO_CONTENT | StatusCode::OK => Ok(None),
             StatusCode::ACCEPTED => Ok(response.json().await?),
             StatusCode::NOT_FOUND => Err(ConnectError::ConnectorDoesNotExist(name.to_string())),
-            StatusCode::CONFLICT => {
-                Err(ConnectError::Rebalancing)
-            }
-            StatusCode::INTERNAL_SERVER_ERROR => {
-                Err(ConnectError::InternalError)
-            }
-            _ => Err(ConnectError::Unknown(anyhow::anyhow!("Unrecognizable error for status code {}", status_code))),
+            StatusCode::CONFLICT => Err(ConnectError::Rebalancing),
+            StatusCode::INTERNAL_SERVER_ERROR => Err(ConnectError::InternalError),
+            _ => Err(ConnectError::Unknown(anyhow::anyhow!(
+                "Unrecognizable error for status code {}",
+                status_code
+            ))),
         }
     }
 
@@ -151,17 +150,14 @@ impl Connect {
         let status_code = response.status();
         match status_code {
             StatusCode::NO_CONTENT | StatusCode::OK => Ok(()),
-            StatusCode::CONFLICT => {
-                Err(ConnectError::Rebalancing)
-            }
-            _ => Err(ConnectError::Unknown(anyhow::anyhow!("Unrecognizable error"))),
+            StatusCode::CONFLICT => Err(ConnectError::Rebalancing),
+            _ => Err(ConnectError::Unknown(anyhow::anyhow!(
+                "Unrecognizable error"
+            ))),
         }
     }
 
-    pub async fn connector_config(
-        &self,
-        connector: &str,
-    ) -> Result<HashMap<String, String>> {
+    pub async fn connector_config(&self, connector: &str) -> Result<HashMap<String, String>> {
         let response: HashMap<String, String> = self
             .client
             .get(format!("{}/connectors/{}/config", self.address, connector))
@@ -173,19 +169,84 @@ impl Connect {
     }
 
     pub async fn pause_connector(&self, name: &str) -> Result<()> {
-        self.client.put(format!("{}/connectors/{}/pause", self.address, name)).send().await?;
+        self.client
+            .put(format!("{}/connectors/{}/pause", self.address, name))
+            .send()
+            .await?;
         Ok(())
     }
 
     pub async fn resume_connector(&self, name: &str) -> Result<()> {
-        self.client.put(format!("{}/connectors/{}/resume", self.address, name)).send().await?;
+        self.client
+            .put(format!("{}/connectors/{}/resume", self.address, name))
+            .send()
+            .await?;
         Ok(())
     }
 
     pub async fn stop_connector(&self, name: &str) -> Result<()> {
-        self.client.put(format!("{}/connectors/{}/stop", self.address, name)).send().await?;
-        Ok(()) 
+        self.client
+            .put(format!("{}/connectors/{}/stop", self.address, name))
+            .send()
+            .await?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_info() {
+        let expected = models::ClusterInfo {
+            commit: "test".into(),
+            version: "0.1.0".into(),
+            kafka_cluster_id: "test".into(),
+        };
+        let mut server = mockito::Server::new_async().await;
+        server
+            .mock("GET", "/")
+            .with_body(serde_json::to_string(&expected).unwrap())
+            .with_status(200)
+            .create_async()
+            .await;
+        let connect = Connect::new(&format!("http://{}", server.host_with_port()), "", None);
+        let actual = connect.info().await.unwrap();
+        assert_eq!(actual.commit, expected.commit)
     }
 
-    
+    #[tokio::test]
+    async fn test_expand() {
+        let connector = Connector {
+            info: Some(ConnectorInfo {
+                name: "test".into(),
+                config: HashMap::new(),
+                tasks: Vec::new(),
+                kind: "source".into(),
+            }),
+            status: None,
+        };
+        let mut expected = HashMap::new();
+        expected.insert("test".to_string(), connector);
+        let mut server = mockito::Server::new_async().await;
+        server
+            .mock("GET", "/connectors")
+            .match_query(mockito::Matcher::AnyOf(
+                (vec![
+                    mockito::Matcher::Exact("expand=info".to_string()),
+                    mockito::Matcher::Exact("expand=status".to_string()),
+                ]),
+            ))
+            .with_body(serde_json::to_string(&expected).unwrap())
+            .with_status(200)
+            .create_async()
+            .await;
+        let connect = Connect::new(&server.url(), "", None);
+        let actual = connect.connectors(false, true).await.unwrap();
+        assert_eq!(expected, actual);
+        // if both expand_info and expand_status are false, we expect an error
+        let actual = connect.connectors(false, false).await;
+        assert!(actual.is_err())
+    }
 }

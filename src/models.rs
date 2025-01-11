@@ -12,7 +12,7 @@ pub struct ClusterInfo {
     pub kafka_cluster_id: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Connector {
     pub info: Option<ConnectorInfo>,
     pub status: Option<ConnectorStatus>,
@@ -27,7 +27,7 @@ impl Connector {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ConnectorInfo {
     pub name: String,
     pub config: HashMap<String, String>,
@@ -36,13 +36,13 @@ pub struct ConnectorInfo {
     pub kind: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TaskInfo {
     pub connector: String,
     pub task: u64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ConnectorStatus {
     pub connector: ConnectorState,
     pub name: String,
@@ -51,14 +51,14 @@ pub struct ConnectorStatus {
     pub kind: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ConnectorState {
     pub connector: Option<String>,
     pub state: Status,
     pub worker_id: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TaskStatus {
     pub id: u64,
     pub state: Status,
