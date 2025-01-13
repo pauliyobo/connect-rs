@@ -29,7 +29,7 @@ pub enum ConnectError {
     #[error(transparent)]
     MiddlewareError(#[from] reqwest_middleware::Error),
     #[error("The connector {0} does not exist.")]
-    ConnectorNotFound,
+    ConnectorNotFound(String),
 }
 
 pub type Result<T> = anyhow::Result<T, ConnectError>;
