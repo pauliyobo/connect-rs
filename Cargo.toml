@@ -8,10 +8,10 @@ authors = ["Paul Iyobo <pauliyobo@gmail.com"]
 anyhow = "1.0.90"
 base64 = "0.22.1"
 reqwest = { version = "0.12.8", features = ["json"] }
-reqwest-retry = "0.6.1"
+reqwest-retry = "0.7"
 serde = { version = "1.0.210", features = ["derive"] }
 tokio = { version = "1.40.0", features = ["full"] }
-reqwest-middleware = { version = "0.3.3", features = ["json"] }
+reqwest-middleware = { version = "0.4", features = ["json"] }
 retry-policies = "0.4.0"
 thiserror = "2.0.11"
 async-trait = "0.1.85"

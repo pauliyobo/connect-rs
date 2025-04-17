@@ -4,10 +4,9 @@ use std::collections::HashMap;
 
 use base64::{engine::general_purpose, Engine};
 use reqwest::{header, Client, StatusCode};
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware,};
+use retry_policies::{Jitter, policies::ExponentialBackoff};
 use reqwest_retry::RetryTransientMiddleware;
-use retry_policies::policies::ExponentialBackoff;
-use retry_policies::Jitter;
 use std::time::Duration;
 use thiserror::Error;
 
