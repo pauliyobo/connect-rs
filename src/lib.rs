@@ -4,9 +4,9 @@ use std::collections::HashMap;
 
 use base64::{engine::general_purpose, Engine};
 use reqwest::{header, Client, StatusCode};
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware,};
-use retry_policies::{Jitter, policies::ExponentialBackoff};
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::RetryTransientMiddleware;
+use retry_policies::{policies::ExponentialBackoff, Jitter};
 use std::time::Duration;
 use thiserror::Error;
 
@@ -189,6 +189,25 @@ impl Connect {
             .await?;
         Ok(())
     }
+
+    pub async fn connector_offsets<P, O>(&self, name: &str) -> Result<Vec<ConnectorOffset<P, O>>>
+    where
+        P: serde::de::DeserializeOwned,
+        O: serde::de::DeserializeOwned,
+    {
+        #[derive(serde::Deserialize)]
+        struct ConnectorOffsetsResponse<P, O> {
+            pub offsets: Vec<ConnectorOffset<P, O>>,
+        }
+        let response: ConnectorOffsetsResponse<P, O> = self
+            .client
+            .get(format!("{}/connectors/{}/offsets", self.address, name))
+            .send()
+            .await?
+            .json()
+            .await?;
+        Ok(response.offsets)
+    }
 }
 
 #[cfg(test)]
@@ -230,12 +249,10 @@ mod tests {
         let mut server = mockito::Server::new_async().await;
         server
             .mock("GET", "/connectors")
-            .match_query(mockito::Matcher::AnyOf(
-                vec![
-                    mockito::Matcher::Exact("expand=info".to_string()),
-                    mockito::Matcher::Exact("expand=status".to_string()),
-                ],
-            ))
+            .match_query(mockito::Matcher::AnyOf(vec![
+                mockito::Matcher::Exact("expand=info".to_string()),
+                mockito::Matcher::Exact("expand=status".to_string()),
+            ]))
             .with_body(serde_json::to_string(&expected).unwrap())
             .with_status(200)
             .create_async()

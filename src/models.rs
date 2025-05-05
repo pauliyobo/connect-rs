@@ -1,6 +1,7 @@
 //! Connect rest interface models
 //! Every struct defined here is used to interact with the kafka-connect API
 //! The structures follow as of now the specification for kafka-connect  version 7.5
+use serde::de::Deserializer;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -76,4 +77,66 @@ pub enum Status {
     Failed,
     Unassigned,
     Stopped,
+}
+
+/// kafka source connector offset
+/// Source connectors may represent partition and offset information in their own specific way
+#[derive(Clone, Debug, Serialize, PartialEq, Eq, Deserialize)]
+pub struct SourceConnectorOffset<P, O> {
+    /// partition offset
+    pub partition: P,
+    // connector offset
+    pub offset: O,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SinkConnectorOffsetPartition {
+    pub kafka_topic: String,
+    pub kafka_partition: u64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub struct SinkConnectorOffsetOffset {
+    pub offset: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub struct SinkConnectorOffset {
+    pub partition: SinkConnectorOffsetPartition,
+    pub offset: SinkConnectorOffsetOffset,
+}
+
+/// sink connector offset representation
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(untagged)]
+pub enum ConnectorOffset<P, O> {
+    Source(SourceConnectorOffset<P, O>),
+    Sink(SinkConnectorOffset),
+}
+
+impl<'de, P, O> Deserialize<'de> for ConnectorOffset<P, O>
+where
+    P: Deserialize<'de>,
+    O: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Inner<P, O> {
+            Source(SourceConnectorOffset<P, O>),
+            Sink(SinkConnectorOffset),
+        }
+
+        match Inner::<P, O>::deserialize(deserializer) {
+            Ok(Inner::Source(source)) => Ok(ConnectorOffset::Source(source)),
+            Ok(Inner::Sink(sink)) => Ok(ConnectorOffset::Sink(sink)),
+            Err(e) => Err(serde::de::Error::custom(format!(
+                "Failed to deserialize ConnectorOffset: {}",
+                e
+            ))),
+        }
+    }
 }
