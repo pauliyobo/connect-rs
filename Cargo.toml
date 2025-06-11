@@ -5,17 +5,17 @@ edition = "2024"
 authors = ["Paul Iyobo <pauliyobo@gmail.com"]
 
 [dependencies]
-anyhow = "1.0.90"
+anyhow = "1.0.98"
 base64 = "0.22.1"
-reqwest = { version = "0.12.8", features = ["json"] }
+reqwest = { version = "0.12.19", features = ["json"] }
 reqwest-retry = "0.7"
-serde = { version = "1.0.210", features = ["derive"] }
-tokio = { version = "1.40.0", features = ["full"] }
+serde = { version = "1.0.219", features = ["derive"] }
+tokio = { version = "1.45.1", features = ["full"] }
 reqwest-middleware = { version = "0.4", features = ["json"] }
 retry-policies = "0.4.0"
-thiserror = "2.0.11"
-async-trait = "0.1.85"
+thiserror = "2.0.12"
+async-trait = "0.1.88"
 
 [dev-dependencies]
-mockito = "1.6.1"
-serde_json = "1.0.135"
+mockito = "1.7.0"
+serde_json = "1.0.140"
