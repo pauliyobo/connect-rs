@@ -2,11 +2,11 @@ pub mod models;
 use models::*;
 use std::collections::HashMap;
 
-use base64::{engine::general_purpose, Engine};
-use reqwest::{header, Client, StatusCode};
+use base64::{Engine, engine::general_purpose};
+use reqwest::{Client, StatusCode, header};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::RetryTransientMiddleware;
-use retry_policies::{policies::ExponentialBackoff, Jitter};
+use retry_policies::{Jitter, policies::ExponentialBackoff};
 use std::time::Duration;
 use thiserror::Error;
 
@@ -15,16 +15,21 @@ const ENGINE: general_purpose::GeneralPurpose = general_purpose::STANDARD;
 /// ConnectError
 #[derive(Debug, Error)]
 pub enum ConnectError {
+    /// The operation can not complete because of a rebalance
     #[error("A rebalance may be  needed, forthcoming, or underway.")]
     RebalancingInProgress,
+    /// Unknown error
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
+    /// Internal server error
     #[error("An internal server error occurred while processing the request.")]
     InternalError,
     #[error("At least one of 'info' or 'status' must be expanded.")]
     InvalidExpandOption,
+    /// reqwest error
     #[error(transparent)]
     RequestError(#[from] reqwest::Error),
+    // reqwest_middleware error
     #[error(transparent)]
     MiddlewareError(#[from] reqwest_middleware::Error),
     #[error("The connector {0} does not exist.")]
@@ -90,6 +95,7 @@ impl Connect {
         Ok(response)
     }
 
+    /// return a list of connectors with expanded information
     pub async fn connectors(
         &self,
         expand_status: bool,
@@ -111,6 +117,7 @@ impl Connect {
         Ok(response)
     }
 
+    /// Restart a connector
     pub async fn restart_connector(
         &self,
         name: &str,
@@ -139,6 +146,7 @@ impl Connect {
         }
     }
 
+    /// Delete a connector
     pub async fn delete_connector(&self, connector: &str) -> Result<()> {
         let response = self
             .client
@@ -155,6 +163,7 @@ impl Connect {
         }
     }
 
+    /// return config information for a connector
     pub async fn connector_config(&self, connector: &str) -> Result<HashMap<String, String>> {
         let response: HashMap<String, String> = self
             .client
@@ -166,6 +175,7 @@ impl Connect {
         Ok(response)
     }
 
+    /// pause a connector
     pub async fn pause_connector(&self, name: &str) -> Result<()> {
         self.client
             .put(format!("{}/connectors/{}/pause", self.address, name))
@@ -174,6 +184,7 @@ impl Connect {
         Ok(())
     }
 
+    /// Resume a connector
     pub async fn resume_connector(&self, name: &str) -> Result<()> {
         self.client
             .put(format!("{}/connectors/{}/resume", self.address, name))
@@ -182,6 +193,7 @@ impl Connect {
         Ok(())
     }
 
+    /// Stop a connector
     pub async fn stop_connector(&self, name: &str) -> Result<()> {
         self.client
             .put(format!("{}/connectors/{}/stop", self.address, name))
@@ -190,6 +202,7 @@ impl Connect {
         Ok(())
     }
 
+    /// get offsets for a connector
     pub async fn connector_offsets<P, O>(&self, name: &str) -> Result<Vec<ConnectorOffset<P, O>>>
     where
         P: serde::de::DeserializeOwned,

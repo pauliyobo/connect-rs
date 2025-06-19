@@ -1,6 +1,5 @@
 //! Connect rest interface models
 //! Every struct defined here is used to interact with the kafka-connect API
-//! The structures follow as of now the specification for kafka-connect  version 7.5
 use serde::de::Deserializer;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -13,9 +12,12 @@ pub struct ClusterInfo {
     pub kafka_cluster_id: String,
 }
 
+// General connector info
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Connector {
+    /// connector information
     pub info: Option<ConnectorInfo>,
+    /// connector status
     pub status: Option<ConnectorStatus>,
 }
 
@@ -28,21 +30,28 @@ impl Connector {
     }
 }
 
+/// Information of a connector
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ConnectorInfo {
+    /// Nsme of the connector
     pub name: String,
+    /// connector configuration
     pub config: HashMap<String, String>,
+    /// list of correlated task information
     pub tasks: Vec<TaskInfo>,
+    /// type of connector
     #[serde(rename = "type")]
     pub kind: String,
 }
 
+/// Connector task information
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TaskInfo {
     pub connector: String,
     pub task: u64,
 }
 
+//// connector status
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ConnectorStatus {
     pub connector: ConnectorState,
@@ -52,6 +61,7 @@ pub struct ConnectorStatus {
     pub kind: String,
 }
 
+/// state representation of a connector
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ConnectorState {
     pub connector: Option<String>,
@@ -59,11 +69,16 @@ pub struct ConnectorState {
     pub worker_id: String,
 }
 
+/// Status information for a task
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TaskStatus {
+    /// task Identifier
     pub id: u64,
+    /// State of the task
     pub state: Status,
+    /// name of the worker on which the task is running
     pub worker_id: String,
+    /// task trace of an errored task,
     pub trace: Option<String>,
 }
 
@@ -85,7 +100,7 @@ pub enum Status {
 pub struct SourceConnectorOffset<P, O> {
     /// partition offset
     pub partition: P,
-    // connector offset
+    /// connector offset
     pub offset: O,
 }
 
@@ -106,7 +121,6 @@ pub struct SinkConnectorOffset {
     pub offset: SinkConnectorOffsetOffset,
 }
 
-/// sink connector offset representation
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum ConnectorOffset<P, O> {
