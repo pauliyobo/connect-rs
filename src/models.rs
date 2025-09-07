@@ -79,6 +79,20 @@ pub enum Status {
     Stopped,
 }
 
+impl std::fmt::Display for Status {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unassigned => write!(f, "Unassigned")?,
+            Self::Failed => write!(f, "Failed")?,
+            Self::Paused => write!(f, "Paused")?,
+            Self::Restarting => write!(f, "Restarting")?,
+            Self::Running => write!(f, "Running")?,
+            Self::Stopped => write!(f, "Stopped")?,
+        };
+        Ok(())
+    }
+}
+
 /// kafka source connector offset
 /// Source connectors may represent partition and offset information in their own specific way
 #[derive(Clone, Debug, Serialize, PartialEq, Eq, Deserialize)]
