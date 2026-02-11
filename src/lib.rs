@@ -15,6 +15,9 @@ const ENGINE: general_purpose::GeneralPurpose = general_purpose::STANDARD;
 /// ConnectError
 #[derive(Debug, Error)]
 pub enum ConnectError {
+    /// The operation returned a bad request
+    #[error("[0].message")]
+    BadRequest(ErrorMessage),
     /// The operation can not complete because of a rebalance
     #[error("A rebalance may be  needed, forthcoming, or underway.")]
     RebalancingInProgress,
@@ -46,22 +49,24 @@ pub struct Connect {
 }
 
 impl Connect {
-    pub fn new(address: &str, username: &str, password: Option<&str>) -> Self {
-        // set up the basic auth
-        let credentials = ENGINE.encode(format!("{}:{}", username, password.unwrap_or("")));
-        let basic_auth = format!("Basic {}", credentials);
+    pub fn new(address: &str, username: Option<&str>, password: Option<&str>) -> Self {
         let mut headers = header::HeaderMap::new();
-        let mut auth_value = header::HeaderValue::from_str(&basic_auth).unwrap();
-        auth_value.set_sensitive(true);
-        headers.insert(header::AUTHORIZATION, auth_value);
+        if let Some(username) = username {
+            // set up the basic auth
+            let credentials = ENGINE.encode(format!("{}:{}", username, password.unwrap_or("")));
+            let basic_auth = format!("Basic {}", credentials);
+            let mut auth_value = header::HeaderValue::from_str(&basic_auth).unwrap();
+            auth_value.set_sensitive(true);
+            headers.insert(header::AUTHORIZATION, auth_value);
+        }
         let client = Client::builder().default_headers(headers).build().unwrap();
         let address = address.to_string();
         // setup backoff
         let policy = ExponentialBackoff::builder()
-            .retry_bounds(Duration::from_secs(1), Duration::from_secs(60))
+            .retry_bounds(Duration::from_secs(1), Duration::from_secs(5))
             .jitter(Jitter::Bounded)
             .base(2)
-            .build_with_total_retry_duration(Duration::from_secs(600));
+            .build_with_total_retry_duration(Duration::from_secs(20));
         let retry_transient_middleware = RetryTransientMiddleware::new_with_policy(policy);
         let client = ClientBuilder::new(client)
             .with(retry_transient_middleware)
@@ -117,6 +122,24 @@ impl Connect {
         Ok(response)
     }
 
+    /// create a new connector
+    pub async fn create_connector(&self, name: &str, config: HashMap<String, String>) -> Result<ConnectorInfo> {
+        let body = serde_json::json!({
+            "name": name,
+            "config": config
+        });
+        let response = self.client.post(format!("{}/connectors", self.address)).json(&body).send().await?;
+        match response.status() {
+            StatusCode::CREATED => Ok(response.json().await?),
+            StatusCode::CONFLICT => Err(ConnectError::RebalancingInProgress),
+            StatusCode::BAD_REQUEST => Err(ConnectError::BadRequest(response.json().await?)),
+            _ => {
+                println!("{:?}", response.text().await?);
+                Err(ConnectError::InternalError)
+            }
+        }
+    }
+    
     /// Restart a connector
     pub async fn restart_connector(
         &self,
@@ -241,7 +264,7 @@ mod tests {
             .with_status(200)
             .create_async()
             .await;
-        let connect = Connect::new(&format!("http://{}", server.host_with_port()), "", None);
+        let connect = Connect::new(&format!("http://{}", server.host_with_port()), None, None);
         let actual = connect.info().await.unwrap();
         assert_eq!(actual.commit, expected.commit)
     }
@@ -253,7 +276,7 @@ mod tests {
                 name: "test".into(),
                 config: HashMap::new(),
                 tasks: Vec::new(),
-                kind: "source".into(),
+                kind: Some("source".into()),
             }),
             status: None,
         };
@@ -270,7 +293,7 @@ mod tests {
             .with_status(200)
             .create_async()
             .await;
-        let connect = Connect::new(&server.url(), "", None);
+        let connect = Connect::new(&server.url(), None, None);
         let actual = connect.connectors(false, true).await.unwrap();
         assert_eq!(expected, actual);
         // if both expand_info and expand_status are false, we expect an error

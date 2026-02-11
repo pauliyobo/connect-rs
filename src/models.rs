@@ -41,7 +41,7 @@ pub struct ConnectorInfo {
     pub tasks: Vec<TaskInfo>,
     /// type of connector
     #[serde(rename = "type")]
-    pub kind: String,
+    pub kind: Option<String>,
 }
 
 /// Connector task information
@@ -167,4 +167,11 @@ where
             ))),
         }
     }
+}
+
+/// body of an error message
+#[derive(Debug, Clone, Deserialize)]
+pub struct ErrorMessage {
+    pub error_code: u16,
+    pub message: String,
 }
