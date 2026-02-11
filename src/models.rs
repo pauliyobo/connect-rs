@@ -126,7 +126,7 @@ pub struct SinkConnectorOffsetPartition {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct SinkConnectorOffsetOffset {
-    pub kafka_offset: i32,
+    pub kafka_offset: i64,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
