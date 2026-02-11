@@ -276,7 +276,7 @@ mod tests {
                 name: "test".into(),
                 config: HashMap::new(),
                 tasks: Vec::new(),
-                kind: Some("source".into()),
+                kind: "source".into(),
             }),
             status: None,
         };
