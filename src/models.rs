@@ -41,7 +41,7 @@ pub struct ConnectorInfo {
     pub tasks: Vec<TaskInfo>,
     /// type of connector
     #[serde(rename = "type")]
-    pub kind: Option<String>,
+    pub kind: String,
 }
 
 /// Connector task information
