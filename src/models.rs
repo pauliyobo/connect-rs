@@ -121,12 +121,12 @@ pub struct SourceConnectorOffset<P, O> {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SinkConnectorOffsetPartition {
     pub kafka_topic: String,
-    pub kafka_partition: u64,
+    pub kafka_partition: i32,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct SinkConnectorOffsetOffset {
-    pub offset: String,
+    pub kafka_offset: i64,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -167,4 +167,11 @@ where
             ))),
         }
     }
+}
+
+/// body of an error message
+#[derive(Debug, Clone, Deserialize)]
+pub struct ErrorMessage {
+    pub error_code: u16,
+    pub message: String,
 }
