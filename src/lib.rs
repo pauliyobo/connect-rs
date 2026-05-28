@@ -26,7 +26,7 @@ pub enum ConnectError {
     Unknown(#[from] anyhow::Error),
     /// Internal server error
     #[error("An internal server error occurred while processing the request.")]
-    InternalError,
+    InternalError(ErrorMessage),
     #[error("At least one of 'info' or 'status' must be expanded.")]
     InvalidExpandOption,
     /// reqwest error
@@ -134,8 +134,7 @@ impl Connect {
             StatusCode::CONFLICT => Err(ConnectError::RebalancingInProgress),
             StatusCode::BAD_REQUEST => Err(ConnectError::BadRequest(response.json().await?)),
             _ => {
-                println!("{:?}", response.text().await?);
-                Err(ConnectError::InternalError)
+                Err(ConnectError::InternalError(response.json().await?))
             }
         }
     }
@@ -161,7 +160,7 @@ impl Connect {
             StatusCode::ACCEPTED => Ok(response.json().await?),
             StatusCode::NOT_FOUND => Err(ConnectError::ConnectorNotFound(name.to_string())),
             StatusCode::CONFLICT => Err(ConnectError::RebalancingInProgress),
-            StatusCode::INTERNAL_SERVER_ERROR => Err(ConnectError::InternalError),
+            StatusCode::INTERNAL_SERVER_ERROR => Err(ConnectError::InternalError(response.json().await?)),
             _ => Err(ConnectError::Unknown(anyhow::anyhow!(
                 "Unrecognizable error for status code {}",
                 status_code
@@ -180,6 +179,7 @@ impl Connect {
         match status_code {
             StatusCode::NO_CONTENT | StatusCode::OK => Ok(()),
             StatusCode::CONFLICT => Err(ConnectError::RebalancingInProgress),
+            StatusCode::INTERNAL_SERVER_ERROR => Err(ConnectError::InternalError(response.json().await?)),
             _ => Err(ConnectError::Unknown(anyhow::anyhow!(
                 "Unrecognizable error"
             ))),
@@ -196,6 +196,16 @@ impl Connect {
             .json()
             .await?;
         Ok(response)
+    }
+
+    pub async fn update_connector_config(&self, connector: &str, config: HashMap<String, String>) -> Result<ConnectorInfo> {
+        let response = self.client.put(format!("{}/connectors/{}/config", self.address, connector)).json(&config).send().await?;
+        match response.status() {
+            StatusCode::CREATED | StatusCode::OK => Ok(response.json().await?),
+            StatusCode::BAD_REQUEST => Err(ConnectError::BadRequest(response.json().await?)),
+            StatusCode::CONFLICT => Err(ConnectError::RebalancingInProgress),
+            _ => Err(ConnectError::InternalError(response.json().await?))
+        }
     }
 
     /// pause a connector
