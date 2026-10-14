@@ -123,22 +123,29 @@ impl Connect {
     }
 
     /// create a new connector
-    pub async fn create_connector(&self, name: &str, config: HashMap<String, String>) -> Result<ConnectorInfo> {
+    pub async fn create_connector(
+        &self,
+        name: &str,
+        config: HashMap<String, String>,
+    ) -> Result<ConnectorInfo> {
         let body = serde_json::json!({
             "name": name,
             "config": config
         });
-        let response = self.client.post(format!("{}/connectors", self.address)).json(&body).send().await?;
+        let response = self
+            .client
+            .post(format!("{}/connectors", self.address))
+            .json(&body)
+            .send()
+            .await?;
         match response.status() {
             StatusCode::CREATED => Ok(response.json().await?),
             StatusCode::CONFLICT => Err(ConnectError::RebalancingInProgress),
             StatusCode::BAD_REQUEST => Err(ConnectError::BadRequest(response.json().await?)),
-            _ => {
-                Err(ConnectError::InternalError(response.json().await?))
-            }
+            _ => Err(ConnectError::InternalError(response.json().await?)),
         }
     }
-    
+
     /// Restart a connector
     pub async fn restart_connector(
         &self,
@@ -160,7 +167,9 @@ impl Connect {
             StatusCode::ACCEPTED => Ok(response.json().await?),
             StatusCode::NOT_FOUND => Err(ConnectError::ConnectorNotFound(name.to_string())),
             StatusCode::CONFLICT => Err(ConnectError::RebalancingInProgress),
-            StatusCode::INTERNAL_SERVER_ERROR => Err(ConnectError::InternalError(response.json().await?)),
+            StatusCode::INTERNAL_SERVER_ERROR => {
+                Err(ConnectError::InternalError(response.json().await?))
+            }
             _ => Err(ConnectError::Unknown(anyhow::anyhow!(
                 "Unrecognizable error for status code {}",
                 status_code
@@ -179,7 +188,9 @@ impl Connect {
         match status_code {
             StatusCode::NO_CONTENT | StatusCode::OK => Ok(()),
             StatusCode::CONFLICT => Err(ConnectError::RebalancingInProgress),
-            StatusCode::INTERNAL_SERVER_ERROR => Err(ConnectError::InternalError(response.json().await?)),
+            StatusCode::INTERNAL_SERVER_ERROR => {
+                Err(ConnectError::InternalError(response.json().await?))
+            }
             _ => Err(ConnectError::Unknown(anyhow::anyhow!(
                 "Unrecognizable error"
             ))),
@@ -198,13 +209,22 @@ impl Connect {
         Ok(response)
     }
 
-    pub async fn update_connector_config(&self, connector: &str, config: HashMap<String, String>) -> Result<ConnectorInfo> {
-        let response = self.client.put(format!("{}/connectors/{}/config", self.address, connector)).json(&config).send().await?;
+    pub async fn update_connector_config(
+        &self,
+        connector: &str,
+        config: HashMap<String, String>,
+    ) -> Result<ConnectorInfo> {
+        let response = self
+            .client
+            .put(format!("{}/connectors/{}/config", self.address, connector))
+            .json(&config)
+            .send()
+            .await?;
         match response.status() {
             StatusCode::CREATED | StatusCode::OK => Ok(response.json().await?),
             StatusCode::BAD_REQUEST => Err(ConnectError::BadRequest(response.json().await?)),
             StatusCode::CONFLICT => Err(ConnectError::RebalancingInProgress),
-            _ => Err(ConnectError::InternalError(response.json().await?))
+            _ => Err(ConnectError::InternalError(response.json().await?)),
         }
     }
 
@@ -253,5 +273,42 @@ impl Connect {
             .json()
             .await?;
         Ok(response.offsets)
+    }
+
+    pub async fn tasks(&self, connector: &str) -> Result<Vec<Task>> {
+        let response = self
+            .client
+            .get(&format!("{}/connectors/{}/tasks", self.address, connector))
+            .send()
+            .await?
+            .json()
+            .await?;
+        Ok(response)
+    }
+
+    pub async fn task_status(&self, connector: &str, task: u64) -> Result<TaskStatus> {
+        let response = self
+            .client
+            .get(&format!(
+                "{}/connectors/{}/tasks/{}/status",
+                self.address, connector, task
+            ))
+            .send()
+            .await?
+            .json()
+            .await?;
+        Ok(response)
+    }
+
+    pub async fn restart_task(&self, connector: &str, task: u64) -> Result<()> {
+        self.client
+            .post(&format!(
+                "{}/connectors/{}/tasks/{}/restart",
+                self.address, connector, task
+            ))
+            .send()
+            .await?
+            .error_for_status_ref()?;
+        Ok(())
     }
 }

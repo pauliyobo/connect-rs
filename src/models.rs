@@ -175,3 +175,15 @@ pub struct ErrorMessage {
     pub error_code: u16,
     pub message: String,
 }
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct TaskId {
+    pub connector: String,
+    pub task: u64,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct Task {
+    pub id: TaskId,
+    pub config: HashMap<String, String>,
+}
